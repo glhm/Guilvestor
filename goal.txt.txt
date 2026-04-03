@@ -1,0 +1,41 @@
+Travaille dans D:\Guilhem\workspace\Guilvestor pour créer, je vais te mettre 3 screens pour que tu vois à quoi ca doit ressembler
+
+le but est de créer une page super moderne pour analyser des actions, le but est de scraper le site dont j'ai mis 3 captures d'écran,
+Reprend toutes les positions du screen pour reproduire à l'identique sur la page et en bas tu ajouteras un emplacement pour évaluer le prix réel de l'action
+Sur une page entiere il doit y avoir les infos de toutees l'actions
+Tire les informations à afficher en fonction du screen que tu vois.
+(La personne affichée sur la photo doit évidemment pas apparraitre
+L'appli se décompose en 2 parties
+
+La partie front hebergée sur github pages 
+
+la partie front doit etre écrit dans n'importe quel framework peut importe mais doit respecter doit etre dans le design de shad/ui
+D:\Guilhem\workspace\Guilvestor\ui (analyse le repo il y a tout dedans pour savoir comment interragir avec l'ui et il y a les skills)
+
+le style doit etre du preset shadcn --preset b4huPoyDj (https://ui.shadcn.com/create?preset=b4huPoyDj
+
+il doit utiliser le repo \ui
+
+ensuite partie back sur aws lambda, envoyé avec infrastructure as code sur aws
+appelle 
+API: Financial Modeling Prep
+
+et calcule What You’ll Need to Compute Yourself
+
+Even with best API (FMP), you must calculate:
+
+📈 CAGR
+CAGR = (Final / Initial)^(1/n) - 1
+💰 Free Cash Flow
+FCF = Operating Cash Flow - CapEx
+📊 ROIC
+ROIC = NOPAT / Invested Capital
+📉 Share dilution
+Growth of shares outstanding over time
+
+DCF simplifié
+il doit contenir un mini moteur de valuation 
+FCF multiple
+fcfGrowth = calculateCAGR(fcfHistory);
+fcfFuture = projectFCF(fcfCurrent, fcfGrowth);
+targetPrice = fcfFuture * multiple / shares;

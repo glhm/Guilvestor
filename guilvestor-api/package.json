@@ -1,0 +1,22 @@
+{
+  "name": "guilvestor-api",
+  "version": "1.0.0",
+  "description": "Guilvestor AWS Lambda API",
+  "main": "dist/handlers/*.js",
+  "scripts": {
+    "build": "esbuild src/handlers/*.ts --bundle --platform=node --target=node20 --outdir=dist",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "aws-lambda": "^1.0.7",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.131",
+    "@types/node": "^20",
+    "typescript": "^5",
+    "esbuild": "^0.19",
+    "vitest": "^1.0.0"
+  }
+}

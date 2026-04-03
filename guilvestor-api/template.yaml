@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Guilvestor API
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs20.x
+    Environment:
+      Variables:
+        FMP_API_KEY: !Ref FmpApiKey
+
+Parameters:
+  FmpApiKey:
+    Type: String
+    Description: Financial Modeling Prep API Key
+
+Resources:
+  GuilvestorApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+
+  GetStockDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: getStockData.handler
+      Events:
+        GetStockData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref GuilvestorApi
+            Path: /stock/{ticker}
+            Method: get
+
+  GetDCFFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: getDCF.handler
+      Events:
+        GetDCF:
+          Type: Api
+          Properties:
+            RestApiId: !Ref GuilvestorApi
+            Path: /stock/{ticker}/dcf
+            Method: post
+
+  GetChartDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: getChartData.handler
+      Events:
+        GetChartData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref GuilvestorApi
+            Path: /stock/{ticker}/chart
+            Method: get
+
+Outputs:
+  GuilvestorApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${GuilvestorApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
