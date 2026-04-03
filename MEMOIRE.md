@@ -430,7 +430,7 @@ REGION=eu-west-1
 
 | # | Agent | Phase | Statut | Priorité |
 |---|-------|-------|--------|----------|
-| 1 | setup-architect | 1 - Structure | 🔄 En cours | 🔴 Critique |
+| 1 | setup-architect | 1 - Structure | ✅ Terminé | 🔴 Critique |
 | 2 | types-contract-designer | 2 - Types/API | ⏳ En attente | 🔴 Critique |
 | 3 | frontend-layout-dev | 3a - Layout | ⏳ En attente | 🟡 Parallèle |
 | 4 | metrics-cards-dev | 3b - Métriques | ⏳ En attente | 🟡 Parallèle |
@@ -473,3 +473,45 @@ Les agents doivent lire et mettre à jour ce fichier :
 ---
 
 **Dernière mise à jour:** 3 Avril 2026 - Initialisation du plan
+
+---
+
+## 📝 Mise à Jour des Agents
+
+**[AGENT: setup-architect] - [03/04/2026 17:30]**
+- **Statut:** ✅ Terminé
+- **Livrables créés:**
+  - Structure complète du projet (D:\Guilhem\workspace\Guilvestor\)
+  - guilvestor-web/ - Frontend Next.js 16 + shadcn/ui
+    - package.json, tsconfig.json, next.config.js, tailwind.config.ts, components.json
+    - app/[ticker]/page.tsx, layout.tsx, globals.css
+    - lib/utils.ts
+    - Dossiers components/{metrics,charts,valuation,layout}/.gitkeep
+    - Dossiers types/.gitkeep, __tests__/.gitkeep
+    - .env.example
+  - guilvestor-api/ - Backend AWS Lambda
+    - package.json, tsconfig.json, template.yaml (SAM)
+    - Dossiers src/{handlers,services,types}/.gitkeep
+    - Dossier __tests__/.gitkeep
+    - .env.example
+  - shared/types/index.ts - Types partagés
+  - .github/workflows/ - CI/CD (deploy-frontend.yml, deploy-backend.yml, tests.yml)
+  - Git initialisé avec branches main, frontend, backend
+- **Validation:**
+  - ✅ `cd guilvestor-web && npm install` - Succès (460 packages)
+  - ✅ `cd guilvestor-api && npm install` - Succès (146 packages)
+  - ✅ Structure des dossiers complète
+  - ✅ Fichiers .env.example créés
+- **Dépendances:** ⏳ En attente de types-contract-designer
+- **Problèmes:** Aucun
+
+---
+
+**[AGENT: types-contract-designer] - [03/04/2026]**
+- **Statut:** ⏳ En attente
+- **Tâche:** Définir les types TypeScript partagés et contrats API
+- **Dépend de:** setup-architect (✅ Terminé)
+- **Livrables attendus:**
+  - shared/types/index.ts (mise à jour)
+  - shared/types/api.ts
+  - Contrats API OpenAPI/Swagger
