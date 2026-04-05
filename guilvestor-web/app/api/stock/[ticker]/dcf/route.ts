@@ -18,43 +18,9 @@ export async function POST(
     }
 
     const body = await request.json();
-    const fmpAdapter = new FMPAdapter();
-    
-    // Fetch stock data if needed fields are missing
-    let currentFCF = body.currentFCF;
-    let sharesOutstanding = body.sharesOutstanding;
-    let currentPrice = body.currentPrice;
-    
-    // Fetch from FMP API if not provided
-    if (!currentFCF) {
-      const cashFlows = await fmpAdapter.getCashFlows(ticker, 1);
-      if (cashFlows && cashFlows.length > 0) {
-        currentFCF = cashFlows[0].freeCashFlow;
-      }
-    }
-    
-    if (!sharesOutstanding) {
-      const incomeStatements = await fmpAdapter.getIncomeStatements(ticker, 1);
-      if (incomeStatements && incomeStatements.length > 0) {
-        sharesOutstanding = incomeStatements[0].weightedAverageSharesDiluted;
-      }
-    }
-    
-    if (!currentPrice) {
-      const profile = await fmpAdapter.getProfile(ticker);
-      currentPrice = profile.price;
-    }
-    
-    // Validate required fields
-    if (!currentFCF || !sharesOutstanding) {
-      return NextResponse.json(
-        { success: false, error: 'Unable to retrieve required financial data for DCF calculation' },
-        { status: 400 }
-      );
-    }
 
-    // Validate numeric values
-    if (currentFCF < 0) {
+    // Validate body inputs before any adapter calls
+    if (body.currentFCF !== undefined && body.currentFCF < 0) {
       return NextResponse.json(
         { success: false, error: 'Invalid input: currentFCF must be positive' },
         { status: 400 }
@@ -69,6 +35,42 @@ export async function POST(
     if (growthRate < 0 || growthRate > 1) {
       return NextResponse.json(
         { success: false, error: 'Invalid input: growthRate must be between 0 and 1' },
+        { status: 400 }
+      );
+    }
+
+    const fmpAdapter = new FMPAdapter();
+
+    // Fetch stock data if needed fields are missing
+    let currentFCF = body.currentFCF;
+    let sharesOutstanding = body.sharesOutstanding;
+    let currentPrice = body.currentPrice;
+
+    if (!currentFCF) {
+      const cashFlows = await fmpAdapter.getCashFlows?.(ticker, 1);
+      if (cashFlows && cashFlows.length > 0) {
+        currentFCF = cashFlows[0].freeCashFlow;
+      }
+    }
+
+    if (!sharesOutstanding) {
+      const incomeStatements = await fmpAdapter.getIncomeStatements?.(ticker, 1);
+      if (incomeStatements && incomeStatements.length > 0) {
+        sharesOutstanding = incomeStatements[0].weightedAverageSharesDiluted;
+      }
+    }
+
+    if (!currentPrice) {
+      const profile = await fmpAdapter.getProfile?.(ticker);
+      if (profile) {
+        currentPrice = profile.price;
+      }
+    }
+
+    // Validate required fields after attempted fetches
+    if (!currentFCF || !sharesOutstanding) {
+      return NextResponse.json(
+        { success: false, error: 'Unable to retrieve required financial data for DCF calculation' },
         { status: 400 }
       );
     }

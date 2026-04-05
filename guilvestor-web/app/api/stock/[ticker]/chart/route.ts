@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FMPAdapter } from '../../../../../services/fmp-adapter';
 import type { ApiResponse, ChartDataPoint } from '../../../../../lib/types/fmp';
 
-const adapter = new FMPAdapter();
-
 type ChartType = 'revenue' | 'fcf' | 'fcf-per-share' | 'roic' | 'gross-margin' | 'fcf-margin' | 'shares' | 'dividends' | 'cash-debt';
 type Period = '5y' | '10y' | 'all';
 
@@ -14,6 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ): Promise<NextResponse<ApiResponse<{ type: string; data: ChartDataPoint[] }>>> {
   try {
+    const adapter = new FMPAdapter();
     const { ticker } = await params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') as ChartType;

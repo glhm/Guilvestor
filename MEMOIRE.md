@@ -580,3 +580,45 @@ Les agents doivent lire et mettre à jour ce fichier :
 - **Livrables créés:**
   - `lib/types/fmp.ts` - Types complets FMP API
   - Types StockData, QualityMetric, DCFInputs, DCFResult, etc.
+
+---
+
+**[AGENT: opencode] - [05/04/2026 - Session 3]**
+- **Statut:** ✅ Terminé
+- **Tâche:** Correction gestion données manquantes + Affichage CAGR dynamique
+- **Actions réalisées:**
+  1. ✅ Migration de Finnhub vers Yahoo Finance (composite-adapter → yahoo-adapter direct)
+     - Suppression dépendance concepts XBRL instables
+     - Renommage composite-adapter.ts → composite-adapter-old.ts
+  2. ✅ Correction calcul CAGR sur données réelles disponibles:
+     - `buildCAGR()` calcule sur (dernière_année - première_année) au lieu de (nombre_points - 1)
+     - Affichage "CAGR Xy" adapté au nombre d'années réelles (ex: META CA 2022→2025 = "3y")
+  3. ✅ Gestion des données manquantes (N/A):
+     - `getValidDataPoints()` filtre les valeurs > 0 pour les calculs
+     - `fillMissingYearsWithNull()` complète années manquantes avec null
+     - Graphiques affichent "N/A" dans tooltip quand valeur null/0
+     - Métriques affichent "N/A" quand moins de 2 points de données
+  4. ✅ Correction affichage descriptions métriques:
+     - "en moyenne par an sur les X dernières années" au lieu de "CAGR Xy"
+  5. ✅ Suppression affichages 10Y et 20Y (non calculables avec données limitées)
+  6. ✅ Correction couleur graphique FCF par action (rouge #FB2C36)
+- **Fichiers modifiés:**
+  - `services/calculations.ts` - Helper getValidDataPoints, descriptions métriques
+  - `services/use-cases/get-stock-analysis.ts` - fillMissingYearsWithNull, buildCAGR corrigé
+  - `services/composite-adapter.ts` → `composite-adapter-old.ts` (archivé)
+  - `app/api/stock/[ticker]/route.ts` - YahooAdapter direct
+  - `components/stock/bar-chart-card.tsx` - Affichage CAGR Xy, N/A
+  - `components/stock/line-chart-card.tsx` - Affichage N/A
+  - `components/stock/quality-metrics.tsx` - Affichage N/A, statut neutral
+  - `components/stock/stock-analysis-page.tsx` - Props CAGR corrigées
+  - `lib/types.ts` - QualityMetric.value: number | null
+  - `lib/types/fmp.ts` - CAGRData avec years/value/label optionnels
+- **Tests:**
+  - ✅ META: CA "CAGR 3y", FCF "CAGR 3y" (périodes réelles)
+  - ✅ RMS.PA: Affichage "N/A" pour données manquantes
+  - ✅ TypeScript: 0 erreurs sur les fichiers modifiés
+- **Prochaines étapes:**
+  - Ajouter onglet Valorisation (calcul DCF interactif)
+  - Ajouter onglet Bilan/Compte de résultat détaillés
+  - Tests avec plus de tickers européens (AIR.PA, etc.)
+

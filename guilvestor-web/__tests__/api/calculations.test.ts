@@ -292,7 +292,7 @@ describe('Financial Calculations', () => {
 
       expect(result).toHaveLength(6);
       result.forEach((metric: QualityMetric) => {
-        expect(metric.value).toBe(0);
+        expect(metric.value === 0 || metric.value === null).toBe(true);
       });
     });
 
