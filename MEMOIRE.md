@@ -8,45 +8,48 @@
 ```
 D:\Guilhem\workspace\Guilvestor\
 ├── MEMOIRE.md                    # Ce fichier - plan complet
-├── guilvestor-web	est	est.tsx     # Frontend Next.js + shadcn
+├── guilvestor-web\              # Frontend Next.js + API Routes
 │   ├── .env.example              # Variables d'environnement
+│   ├── .env.local                # Clé API FMP (local)
 │   ├── app\
 │   │   ├── [ticker]\             # Page analyse action
+│   │   ├── api\                  # API Routes Next.js (backend)
+│   │   │   └── stock\[ticker]\   # Endpoints API
 │   │   ├── layout.tsx
 │   │   └── globals.css
 │   ├── components\
-│   │   ├── metrics	est	est.tsx     # 6 cartes métriques
-│   │   ├── charts	est	est.tsx      # 9 graphiques Recharts  
-│   │   ├── valuation	est.tsx        # Section DCF
-│   │   └── layout	est	est.tsx      # Header, navigation
-│   ├── lib\                     # Client API + calculs
-│   └── __tests__\               # Tests unit + integration
+│   │   ├── stock\                # Composants métier
+│   │   │   ├── stock-analysis-page.tsx
+│   │   │   ├── stock-header.tsx
+│   │   │   ├── quality-metrics.tsx
+│   │   │   └── *.tsx
+│   │   └── ui\                  # 70+ composants shadcn/ui
+│   ├── services\                # Services métier
+│   │   ├── fmp-client.ts        # Client API FMP
+│   │   └── calculations.ts      # Calculs financiers
+│   ├── lib\                     # Utils + types
+│   │   ├── types\fmp.ts         # Types TypeScript
+│   │   ├── api-client.ts        # Client API frontend
+│   │   └── utils.ts
+│   ├── hooks\                   # React hooks
+│   ├── __tests__\               # Tests unitaires
+│   └── coverage\                # Rapports de couverture
 │
-├── guilvestor-api\              # Backend AWS Lambda
-│   ├── .env.example
-│   ├── src\
-│   │   ├── handlers\            # 3 Lambda handlers
-│   │   ├── services\            # FMP client + calculs
-│   │   └── types\
-│   ├── template.yaml            # SAM Infrastructure
-│   └── __tests__\               # Tests backend
-│
-├── shared\                      # Types partagés
+├── shared\                      # Types partagés (legacy)
 │   └── types\index.ts
 │
 └── .github\workflows\           # CI/CD
-    ├── deploy-frontend.yml
-    ├── deploy-backend.yml
-    └── tests.yml
+    ├── deploy.yml               # Déploiement Vercel
+    └── tests.yml                # Tests CI
 ```
 
 ## 🎯 Objectif
 Application d'analyse d'actions boursières avec :
 - Frontend Next.js 16 + React 19 + shadcn/ui (preset b4huPoyDj)
-- Backend AWS Lambda + API Gateway
-- API Financial Modeling Prep
+- Backend : API Routes Next.js (serverless sur Vercel)
+- API Financial Modeling Prep (FMP)
 - Calculs financiers : CAGR, FCF, ROIC, DCF
-- Déploiement GitHub Pages (front) + AWS (back)
+- Déploiement : Vercel (frontend + backend unifié)
 
 ## 🎨 Design Reference
 
@@ -370,12 +373,12 @@ Dilution = (Shares Finale / Shares Initiale)^(1/n) - 1
 - Recharts (graphiques)
 - next-themes (dark/light mode)
 
-### Backend
-- AWS Lambda (Node.js 20)
-- API Gateway
+### Backend (API Routes Next.js)
+- Next.js API Routes (serverless functions)
 - TypeScript
-- SAM (Infrastructure as Code)
-- Région: eu-west-1
+- FMP API Client (axios/fetch)
+- Calculs financiers (services/calculations.ts)
+- Déploiement : Vercel Serverless Functions
 
 ### Testing
 - Vitest (unit tests)
@@ -388,16 +391,16 @@ Dilution = (Shares Finale / Shares Initiale)^(1/n) - 1
 
 ## 📝 Environnement
 
-### Frontend (.env.local)
+### Frontend + Backend (.env.local)
 ```
-NEXT_PUBLIC_API_URL=https://api-guilvestor.execute-api.eu-west-1.amazonaws.com/prod
+# Clé API Financial Modeling Prep (obligatoire)
+FMP_API_KEY=your_api_key_here
+
+# URL de l'API (vide pour utiliser les routes API Next.js locales)
+NEXT_PUBLIC_API_URL=
 ```
 
-### Backend (.env)
-```
-FMP_API_KEY=your_api_key_here
-REGION=eu-west-1
-```
+**Note :** Avec Vercel, les routes API Next.js sont servies sur le même domaine que le frontend. Pas besoin de CORS ni d'URL externe.
 
 ## ✅ Checklist de Validation
 
@@ -408,40 +411,45 @@ REGION=eu-west-1
 - [ ] Tests passent: `npm run test`
 - [ ] Coverage ≥ 80%
 
-### Backend
-- [ ] Build Lambda: `sam build`
-- [ ] Tests passent: `npm run test`
-- [ ] Handler retournent format correct
-- [ ] Gestion erreurs appropriée
+### API Routes (Backend)
+- [x] Routes API créées: `/api/stock/[ticker]`, `/api/stock/[ticker]/dcf`, `/api/stock/[ticker]/chart`
+- [x] Tests routes API passent (57/57) ✅
+- [x] Handlers retournent format correct
+- [x] Gestion erreurs appropriée (404, 500, etc.)
 
 ### Intégration
-- [ ] Frontend appelle backend correctement
-- [ ] Données FMP récupérées et affichées
-- [ ] Calculs DCF fonctionnels
-- [ ] Graphiques Recharts rendus correctement
+- [x] Frontend appelle routes API correctement ✅
+- [x] Données FMP récupérées et affichées ✅
+- [x] Calculs DCF fonctionnels ✅
+- [x] Graphiques Recharts rendus correctement ✅
+- [x] Barre de recherche fonctionnelle ✅
 
-### Déploiement
-- [ ] GitHub Pages déploie frontend
-- [ ] AWS SAM déploie backend
-- [ ] CI/CD déclenché sur push main
-- [ ] Variables d'environnement configurées
+### Déploiement Vercel
+- [ ] Compte Vercel créé et lié au repo
+- [ ] Variables d'environnement configurées sur Vercel (FMP_API_KEY)
+- [ ] Déploiement auto sur push main
+- [ ] Build passe sur Vercel
 
 ## 🚀 Roadmap Agents
 
 | # | Agent | Phase | Statut | Priorité |
 |---|-------|-------|--------|----------|
 | 1 | setup-architect | 1 - Structure | ✅ Terminé | 🔴 Critique |
-| 2 | types-contract-designer | 2 - Types/API | ⏳ En attente | 🔴 Critique |
-| 3 | frontend-layout-dev | 3a - Layout | ⏳ En attente | 🟡 Parallèle |
-| 4 | metrics-cards-dev | 3b - Métriques | ⏳ En attente | 🟡 Parallèle |
-| 5 | charts-dev | 3c - Graphiques | ⏳ En attente | 🟡 Parallèle |
-| 6 | valuation-dcf-dev | 3d - DCF | ⏳ En attente | 🟡 Parallèle |
-| 7 | fmp-service-dev | 4a - FMP Client | ⏳ En attente | 🟡 Parallèle |
-| 8 | calculator-dev | 4b - Calculs | ⏳ En attente | 🟡 Parallèle |
-| 9 | lambda-handlers-dev | 4c - Handlers | ⏳ En attente | 🟡 Parallèle |
-| 10 | infrastructure-devops | 4d - SAM | ⏳ En attente | 🟡 Parallèle |
-| 11 | integration-tester | 5 - Intégration | ⏳ En attente | 🟢 Suite |
-| 12 | cicd-devops | 6 - CI/CD | ⏳ En attente | 🟢 Suite |
+| 2 | types-contract-designer | 2 - Types/API | ✅ Terminé | 🔴 Critique |
+| 3 | api-routes-dev | 3 - API Routes | ✅ Terminé | 🔴 Critique |
+| 4 | frontend-layout-dev | 4a - Layout | ✅ Terminé | 🟡 Parallèle |
+| 5 | metrics-cards-dev | 4b - Métriques | ✅ Terminé | 🟡 Parallèle |
+| 6 | charts-dev | 4c - Graphiques | ✅ Terminé | 🟡 Parallèle |
+| 7 | valuation-dcf-dev | 4d - DCF | ✅ Terminé | 🟡 Parallèle |
+| 8 | fmp-service-dev | 5a - FMP Client | ✅ Terminé | 🟡 Parallèle |
+| 9 | calculator-dev | 5b - Calculs | ✅ Terminé | 🟡 Parallèle |
+| 10 | frontend-integration-dev | 6 - Intégration Frontend/API | ✅ Terminé | 🔴 Critique |
+| 11 | cicd-devops | 7 - CI/CD Vercel | ⏳ En attente | 🟢 Suite |
+
+**Changements majeurs (03/04/2026) :**
+- ❌ Suppression de l'architecture AWS Lambda + SAM
+- ✅ Passage aux API Routes Next.js (plus simple, déploiement unifié sur Vercel)
+- ✅ Routes API déjà implémentées : `/api/stock/[ticker]`, `/api/stock/[ticker]/dcf`, `/api/stock/[ticker]/chart`
 
 ## 🐛 Risques & Mitigations
 
@@ -449,9 +457,13 @@ REGION=eu-west-1
 |--------|--------|------------|
 | Conflits fichiers parallèles | Élevé | Communication via ce fichier, merge fréquents |
 | API FMP indisponible | Moyen | Données mockées pour dev, retry logic |
-| CORS issues | Moyen | API Gateway config CORS permissive |
-| Cold start Lambda | Faible | Pas de mitigation nécessaire (usage perso) |
-| Quota FMP dépassé | Moyen | Cache client-side simple, retry avec backoff |
+| Quota FMP dépassé | Moyen | Cache côté client, retry avec backoff |
+| Temps de build Vercel | Faible | Optimiser le bundle, utiliser edge functions si besoin |
+
+**Risques éliminés (passage à Vercel) :**
+- ❌ CORS issues : Plus de problème (même domaine frontend/backend)
+- ❌ Cold start : Géré automatiquement par Vercel
+- ❌ Complexité infra AWS : Plus de SAM, Lambda, API Gateway à gérer
 
 ## 📞 Communication
 
@@ -472,11 +484,32 @@ Les agents doivent lire et mettre à jour ce fichier :
 
 ---
 
-**Dernière mise à jour:** 3 Avril 2026 - Initialisation du plan
+**Dernière mise à jour:** 3 Avril 2026 - Migration vers Vercel + Routes API
 
 ---
 
 ## 📝 Mise à Jour des Agents
+
+**[AGENT: opencode] - [03/04/2026 - Session 1]**
+- **Statut:** ✅ Terminé
+- **Tâche:** Migration architecture AWS → Vercel + Correction routes API
+- **Actions réalisées:**
+  1. ✅ Mise à jour MEMOIRE.md (suppression AWS Lambda/SAM, ajout Vercel)
+  2. ✅ Correction signatures routes API (Next.js 16 - params comme Promise)
+  3. ✅ Correction tests API (57/57 tests passent)
+  4. ✅ Vérification TypeScript (0 erreurs sur les routes)
+- **Routes API fonctionnelles:**
+  - `GET /api/stock/[ticker]` - Données complètes action ✅
+  - `POST /api/stock/[ticker]/dcf` - Calcul DCF ✅
+  - `GET /api/stock/[ticker]/chart?type=xxx` - Données graphiques ✅
+- **Architecture Clean respectée:**
+  - `app/api/*` - Controllers (handlers HTTP)
+  - `services/*` - Services métier (FMP client, calculs)
+  - `lib/types/*` - Types/Domain
+- **Prochaines étapes:** 
+  - Compléter TODOs dans les routes (ROIC, margins, CAGR réels)
+  - Connecter frontend aux routes API (remplacer mock-data)
+  - Configurer déploiement Vercel
 
 **[AGENT: setup-architect] - [03/04/2026 17:30]**
 - **Statut:** ✅ Terminé
@@ -507,11 +540,43 @@ Les agents doivent lire et mettre à jour ce fichier :
 
 ---
 
+**[AGENT: opencode] - [03/04/2026 - Session 2]**
+- **Statut:** ✅ Terminé
+- **Tâche:** Complétion TODOs routes + Intégration Frontend/API
+- **Actions réalisées:**
+  1. ✅ Complété les TODOs dans `/api/stock/[ticker]/route.ts`:
+     - Calcul ROIC data (calculateROIC)
+     - Calcul Gross Margin
+     - Calcul FCF Margin
+     - Calcul CAGR réels (5y, 10y)
+  2. ✅ Corrigé tests API (ajout mock calculateROIC)
+  3. ✅ Connecté frontend aux routes API:
+     - `stock-analysis-page.tsx` utilise `fetchStockData()`
+     - Gestion états: loading, error, data
+     - Affichage skeleton pendant chargement
+     - Affichage erreur si API indisponible
+  4. ✅ Rendu la barre de recherche fonctionnelle:
+     - Navigation vers `/{ticker}`
+     - Form submit avec Enter
+  5. ✅ 57/57 tests passent
+- **Routes API complètes:**
+  - ✅ `GET /api/stock/[ticker]` - Toutes données (avec ROIC, margins, CAGR)
+  - ✅ `POST /api/stock/[ticker]/dcf` - Calcul DCF
+  - ✅ `GET /api/stock/[ticker]/chart` - Graphiques spécifiques
+- **Frontend connecté:**
+  - ✅ Données réelles FMP affichées
+  - ✅ Barre de recherche fonctionnelle
+  - ✅ États loading/error gérés
+- **Prochaines étapes:**
+  - Configurer déploiement Vercel
+  - Ajouter section Valorisation (onglet DCF)
+  - Tests E2E
+
+---
+
 **[AGENT: types-contract-designer] - [03/04/2026]**
-- **Statut:** ⏳ En attente
+- **Statut:** ✅ Terminé
 - **Tâche:** Définir les types TypeScript partagés et contrats API
-- **Dépend de:** setup-architect (✅ Terminé)
-- **Livrables attendus:**
-  - shared/types/index.ts (mise à jour)
-  - shared/types/api.ts
-  - Contrats API OpenAPI/Swagger
+- **Livrables créés:**
+  - `lib/types/fmp.ts` - Types complets FMP API
+  - Types StockData, QualityMetric, DCFInputs, DCFResult, etc.
