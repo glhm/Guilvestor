@@ -61,6 +61,7 @@ export class YahooAdapter implements StockDataPort {
     });
 
     return data
+      .filter(item => (item as any).totalRevenue != null)
       .slice(-limit)
       .map(item => ({
         fiscalYear: extractYear(item.date),
@@ -81,13 +82,15 @@ export class YahooAdapter implements StockDataPort {
     });
 
     return data
+      .filter(item => (item as any).cashAndCashEquivalents != null || (item as any).totalDebt != null)
       .slice(-limit)
       .map(item => ({
         fiscalYear: extractYear(item.date),
         totalDebt: (item as any).totalDebt ?? 0,
         totalStockholdersEquity: (item as any).stockholdersEquity ?? 0,
         cashAndCashEquivalents: (item as any).cashAndCashEquivalents ?? 0,
-        netDebt: (item as any).netDebt ?? 0,
+        netDebt: (item as any).netDebt ?? undefined,
+        investedCapital: (item as any).investedCapital ?? undefined,
       }));
   }
 
@@ -99,11 +102,13 @@ export class YahooAdapter implements StockDataPort {
     });
 
     return data
+      .filter(item => (item as any).freeCashFlow != null)
       .slice(-limit)
       .map(item => ({
         fiscalYear: extractYear(item.date),
         freeCashFlow: (item as any).freeCashFlow ?? 0,
         stockBasedCompensation: (item as any).stockBasedCompensation ?? 0,
+        dividendsPaid: (item as any).cashDividendsPaid ?? (item as any).commonStockDividendPaid ?? undefined,
       }));
   }
 }

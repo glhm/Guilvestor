@@ -242,29 +242,32 @@ export interface StockData {
 export interface QualityMetric {
   id: string;
   label: string;
-  value: number;
+  value: number | null;
   unit: string;
   description: string;
   threshold: string;
   isPositive: boolean;
-  status?: 'success' | 'warning' | 'error';
+  status?: 'success' | 'warning' | 'error' | 'neutral';
 }
 
 export interface ChartDataPoint {
   year: string;
-  value: number;
+  value: number | null;
   value2?: number; // Pour les graphiques combinés (SBC, dette/cash)
 }
 
 export interface CAGRData {
-  fiveYear: number;
-  tenYear: number;
+  years?: number;
+  value?: number;
+  label?: string;
+  fiveYear?: number;
+  tenYear?: number;
   twentyYear?: number;
 }
 
 export interface RevenueSegment {
   name: string;
-  value: number;
+  value: number | null;
   percentage: number;
 }
 

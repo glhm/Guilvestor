@@ -94,27 +94,18 @@ describe('Financial Calculations', () => {
 
   describe('calculateROIC', () => {
     it('should calculate ROIC correctly', () => {
-      const ebit = 100;
-      const taxRate = 0.21;
-      const totalDebt = 50;
-      const totalEquity = 100;
-      const cash = 20;
-
-      const result = calculateROIC(ebit, taxRate, totalDebt, totalEquity, cash);
-
-      // NOPAT = EBIT * (1 - TaxRate) = 100 * 0.79 = 79
-      // Invested Capital = Debt + Equity - Cash = 50 + 100 - 20 = 130
-      // ROIC = 79 / 130 = 0.607... ≈ 60.8%
-      expect(result).toBeCloseTo(0.608, 2);
+      // ROIC = (FCF - SBC) / investedCapital = (100 - 20) / 200 = 0.4
+      const result = calculateROIC(100, 20, 200);
+      expect(result).toBeCloseTo(0.4, 2);
     });
 
     it('should return 0 for zero invested capital', () => {
-      const result = calculateROIC(100, 0.21, 0, 0, 0);
+      const result = calculateROIC(100, 20, 0);
       expect(result).toBe(0);
     });
 
     it('should handle negative invested capital', () => {
-      const result = calculateROIC(100, 0.21, 10, 10, 50);
+      const result = calculateROIC(100, 20, -50);
       expect(result).toBe(0);
     });
   });

@@ -11,11 +11,12 @@ export interface StockData {
 export interface QualityMetric {
   id: string
   label: string
-  value: number
+  value: number | null
   unit: string
   description: string
   threshold: string
   isPositive: boolean
+  status?: 'success' | 'warning' | 'error' | 'neutral'
 }
 
 export interface ChartDataPoint {
@@ -25,9 +26,12 @@ export interface ChartDataPoint {
 }
 
 export interface CAGRData {
-  fiveYear: number
-  tenYear: number
-  twentyYear: number
+  years?: number
+  value?: number
+  label?: string
+  fiveYear?: number
+  tenYear?: number
+  twentyYear?: number
 }
 
 export interface RevenueSegment {

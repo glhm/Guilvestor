@@ -49,23 +49,20 @@ export class GetStockAnalysisUseCase {
       value2: item.stockBasedCompensation / 1_000_000_000,
     }));
 
-    const fcfPerShareData = sortedCF.map((cf, index) => {
-      const shares = sortedIncome[index]?.weightedAverageSharesDiluted || 1;
-      return { year: cf.fiscalYear, value: cf.freeCashFlow / shares };
-    });
+    const fcfPerShareData = sortedCF
+      .map(cf => {
+        const income = sortedIncome.find(i => i.fiscalYear === cf.fiscalYear);
+        const shares = income?.weightedAverageSharesDiluted;
+        if (!shares || shares <= 0) return null;
+        return { year: cf.fiscalYear, value: cf.freeCashFlow / shares };
+      })
+      .filter((item): item is { year: string; value: number } => item !== null);
 
-    const roicData = sortedIncome.map((income, index) => {
-      const bs = sortedBS[index];
-      if (!bs) return { year: income.fiscalYear, value: 0 };
-      const taxRate = income.incomeTaxExpense / income.incomeBeforeTax || 0.21;
-      const roic = calculateROIC(
-        income.operatingIncome,
-        taxRate,
-        bs.totalDebt,
-        bs.totalStockholdersEquity,
-        bs.cashAndCashEquivalents,
-      );
-      return { year: income.fiscalYear, value: roic * 100 };
+    const roicData = sortedBS.map(bs => {
+      const cf = sortedCF.find(c => c.fiscalYear === bs.fiscalYear);
+      const ic = bs.investedCapital ?? (bs.totalDebt + bs.totalStockholdersEquity - bs.cashAndCashEquivalents);
+      if (!cf || ic <= 0) return { year: bs.fiscalYear, value: 0 };
+      return { year: bs.fiscalYear, value: calculateROIC(cf.freeCashFlow, cf.stockBasedCompensation, ic) * 100 };
     });
 
     const grossMarginData = sortedIncome.map(item => ({
@@ -105,11 +102,16 @@ export class GetStockAnalysisUseCase {
         roic: roicData,
         grossMargin: grossMarginData,
         fcfMargin: fcfMarginData,
-        sharesOutstanding: sortedIncome.map(item => ({
+        sharesOutstanding: sortedIncome
+          .filter(item => item.weightedAverageSharesDiluted > 0)
+          .map(item => ({
+            year: item.fiscalYear,
+            value: item.weightedAverageSharesDiluted / 1_000_000,
+          })),
+        dividends: sortedCF.map(item => ({
           year: item.fiscalYear,
-          value: item.weightedAverageSharesDiluted / 1_000_000,
+          value: item.dividendsPaid ? Math.abs(item.dividendsPaid) / 1_000_000_000 : 0,
         })),
-        dividends: [],
         cashAndDebt: sortedBS.map(item => ({
           year: item.fiscalYear,
           value: item.cashAndCashEquivalents / 1_000_000_000,
@@ -131,12 +133,36 @@ function sortByYear<T extends { fiscalYear: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => parseInt(a.fiscalYear) - parseInt(b.fiscalYear));
 }
 
+
 function buildCAGR(data: { year: string; value: number }[]) {
-  const fiveYear = data.length >= 5
-    ? calculateCAGR(data[data.length - 5].value, data[data.length - 1].value, 5) * 100
-    : 0;
-  const tenYear = data.length >= 10
-    ? calculateCAGR(data[data.length - 10].value, data[data.length - 1].value, 10) * 100
-    : fiveYear;
-  return { fiveYear, tenYear };
+  // Filtrer uniquement les valeurs > 0
+  const validData = data.filter(d => d.value > 0);
+  
+  if (validData.length < 2) {
+    return { years: 0, value: 0, label: 'N/A' };
+  }
+  
+  // Trier par année
+  const sortedData = [...validData].sort((a, b) => parseInt(a.year) - parseInt(b.year));
+  
+  // Calculer sur la période réelle (différence d'années)
+  const firstYear = parseInt(sortedData[0].year);
+  const lastYear = parseInt(sortedData[sortedData.length - 1].year);
+  const years = lastYear - firstYear;
+  
+  if (years <= 0) {
+    return { years: 0, value: 0, label: 'N/A' };
+  }
+  
+  const cagr = calculateCAGR(
+    sortedData[0].value,
+    sortedData[sortedData.length - 1].value,
+    years
+  ) * 100;
+  
+  return {
+    years,
+    value: cagr,
+    label: `CAGR ${years}y`
+  };
 }

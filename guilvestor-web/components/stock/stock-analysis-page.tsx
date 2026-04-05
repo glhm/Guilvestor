@@ -173,22 +173,14 @@ export function StockAnalysisPage() {
               <BarChartCard
                 title="Chiffre d'affaires"
                 data={data.charts.revenue}
-                cagr={{
-                  fiveYear: data.cagrData.revenue.fiveYear,
-                  tenYear: data.cagrData.revenue.tenYear,
-                  twentyYear: 0
-                }}
+                cagr={data.cagrData.revenue}
                 color="#FB2C36"
                 formatValue={(v) => `${v.toFixed(0)}B`}
               />
               <BarChartCard
                 title="Free cash flow et SBC"
                 data={data.charts.fcf}
-                cagr={{
-                  fiveYear: data.cagrData.fcf.fiveYear,
-                  tenYear: data.cagrData.fcf.tenYear,
-                  twentyYear: 0
-                }}
+                cagr={data.cagrData.fcf}
                 dataKey="value"
                 dataKey2="value2"
                 legendLabel="Free cash flow"
@@ -200,12 +192,8 @@ export function StockAnalysisPage() {
               <BarChartCard
                 title="Free Cash Flow par action"
                 data={data.charts.fcfPerShare}
-                cagr={{
-                  fiveYear: data.cagrData.fcfPerShare.fiveYear,
-                  tenYear: data.cagrData.fcfPerShare.tenYear,
-                  twentyYear: 0
-                }}
                 color="#FB2C36"
+                cagr={data.cagrData.fcfPerShare}
                 formatValue={(v) => `${v.toFixed(0)}`}
               />
             </section>

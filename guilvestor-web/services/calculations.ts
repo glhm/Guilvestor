@@ -1,383 +1,144 @@
 import type { AnnualFinancials, AnnualBalanceSheet, AnnualCashFlow } from '../lib/types/domain';
 import type { DCFInputs, DCFResult, QualityMetric } from '../lib/types/fmp';
 
-/**
- * Calculate Compound Annual Growth Rate (CAGR)
- * Formula: CAGR = (Final Value / Initial Value)^(1/n) - 1
- */
 export function calculateCAGR(initialValue: number, finalValue: number, years: number): number {
   if (initialValue <= 0 || years <= 0) return 0;
   return Math.pow(finalValue / initialValue, 1 / years) - 1;
 }
 
-/**
- * Calculate Free Cash Flow
- * FCF = Operating Cash Flow - Capital Expenditure
- * In FMP data, capex is usually negative, so we add it (FCF = OCF + CapEx where CapEx is negative)
- */
-export function calculateFCF(
-  operatingCashFlow: number, 
-  capitalExpenditure: number,
-  providedFCF?: number
-): number {
+export function calculateFCF(operatingCashFlow: number, capitalExpenditure: number, providedFCF?: number): number {
   if (providedFCF !== undefined) return providedFCF;
   if (operatingCashFlow <= 0) return 0;
   if (capitalExpenditure === 0) return 0;
-  // CapEx is negative in FMP data, so FCF = OCF + CapEx (e.g., 100 + (-20) = 80)
   return operatingCashFlow + capitalExpenditure;
 }
 
-/**
- * Calculate FCF per share
- */
 export function calculateFCFPerShare(fcf: number, sharesOutstanding: number): number {
   if (sharesOutstanding <= 0) return 0;
   return fcf / sharesOutstanding;
 }
 
-/**
- * Calculate Return on Invested Capital (ROIC)
- * Formula: ROIC = NOPAT / Invested Capital
- * NOPAT = EBIT * (1 - Tax Rate)
- * Invested Capital = Total Debt + Total Equity - Cash
- */
-export function calculateROIC(
-  ebit: number,
-  taxRate: number,
-  totalDebt: number,
-  totalEquity: number,
-  cash: number
-): number {
-  const nopat = ebit * (1 - taxRate);
-  const investedCapital = totalDebt + totalEquity - cash;
-  
+export function calculateROIC(fcf: number, sbc: number, investedCapital: number): number {
   if (investedCapital <= 0) return 0;
-  
-  return nopat / investedCapital;
+  return (fcf - sbc) / investedCapital;
 }
 
-/**
- * Calculate Net Debt to FCF ratio
- * Shows how many years of FCF needed to pay off debt
- */
 export function calculateDebtToFCF(netDebt: number, fcf: number): number {
   if (fcf <= 0) return Infinity;
   return netDebt / fcf;
 }
 
-/**
- * Calculate share dilution using CAGR formula
- * Positive = dilution (bad), Negative = buybacks (good)
- */
-export function calculateShareDilution(
-  initialShares: number,
-  finalShares: number,
-  years: number
-): number {
+export function calculateShareDilution(initialShares: number, finalShares: number, years: number): number {
   if (initialShares <= 0 || years <= 0) return 0;
   return calculateCAGR(initialShares, finalShares, years);
 }
 
-/**
- * Calculate FCF Margin
- * Formula: FCF Margin = FCF / Revenue
- */
 export function calculateFCFMargin(fcf: number, revenue: number): number {
   if (revenue <= 0) return 0;
   return fcf / revenue;
 }
 
-/**
- * Calculate Discounted Cash Flow (DCF) valuation
- */
-export function calculateDCF(inputs: DCFInputs): DCFResult {
-  const {
-    ticker,
-    currentFCF,
-    growthRate,
-    discountRate,
-    terminalMultiple,
-    projectionYears,
-    sharesOutstanding,
-    currentPrice
-  } = inputs;
+function getValidDataPoints<T>(items: T[], valueGetter: (item: T) => number, yearGetter: (item: T) => string, minPoints: number = 2): Array<{ year: string; value: number }> | null {
+  const valid = items
+    .map(item => ({ year: yearGetter(item), value: valueGetter(item) }))
+    .filter(item => item.value > 0)
+    .sort((a, b) => parseInt(a.year) - parseInt(b.year));
+  return valid.length >= minPoints ? valid : null;
+}
 
+export function calculateDCF(inputs: DCFInputs): DCFResult {
+  const { ticker, currentFCF, growthRate, discountRate, terminalMultiple, projectionYears, sharesOutstanding, currentPrice } = inputs;
   const projectedFCFs: Array<{ year: number; fcf: number; presentValue: number }> = [];
   let enterpriseValue = 0;
-
-  // Project FCF for each year
   let previousFCF = currentFCF;
   for (let year = 1; year <= projectionYears; year++) {
     const fcf = previousFCF * (1 + growthRate);
     const presentValue = fcf / Math.pow(1 + discountRate, year);
-    
-    projectedFCFs.push({
-      year,
-      fcf,
-      presentValue
-    });
-    
+    projectedFCFs.push({ year, fcf, presentValue });
     enterpriseValue += presentValue;
     previousFCF = fcf;
   }
-
-  // Calculate terminal value
   const terminalFCF = previousFCF;
   const terminalValue = (terminalFCF * terminalMultiple) / Math.pow(1 + discountRate, projectionYears);
   enterpriseValue += terminalValue;
-
-  // Calculate equity value and target price
-  // Assuming net debt is 0 for simplicity (can be enhanced later)
   const equityValue = enterpriseValue;
   const targetPrice = sharesOutstanding > 0 ? equityValue / sharesOutstanding : 0;
-
-  // Calculate upside
   let upside = 0;
   if (currentPrice && currentPrice > 0) {
     upside = ((targetPrice - currentPrice) / currentPrice) * 100;
   }
-
-  return {
-    ticker,
-    enterpriseValue,
-    equityValue,
-    targetPrice,
-    currentPrice: currentPrice || 0,
-    upside,
-    projectedFCFs,
-    wacc: discountRate
-  };
+  return { ticker, enterpriseValue, equityValue, targetPrice, currentPrice: currentPrice || 0, upside, projectedFCFs, wacc: discountRate };
 }
 
-/**
- * Calculate all 6 quality metrics for a stock
- */
-export function calculateQualityMetrics(
-  incomeStatements: AnnualFinancials[],
-  balanceSheets: AnnualBalanceSheet[],
-  cashFlows: AnnualCashFlow[]
-): QualityMetric[] {
+export function calculateQualityMetrics(incomeStatements: AnnualFinancials[], balanceSheets: AnnualBalanceSheet[], cashFlows: AnnualCashFlow[]): QualityMetric[] {
   const metrics: QualityMetric[] = [];
-
-  // 1. Revenue Growth (CAGR sur 5 ans)
-  if (incomeStatements.length >= 2) {
-    const sortedIncome = [...incomeStatements].sort((a, b) => 
-      parseInt(b.fiscalYear) - parseInt(a.fiscalYear)
-    );
-    const recentRevenue = sortedIncome[0]?.revenue || 0;
-    const oldRevenue = sortedIncome[Math.min(4, sortedIncome.length - 1)]?.revenue || 0;
-    const years = Math.min(5, sortedIncome.length - 1);
-    
-    const revenueGrowth = calculateCAGR(oldRevenue, recentRevenue, years);
+  const validRevenue = getValidDataPoints(incomeStatements, item => item.revenue, item => item.fiscalYear);
+  if (validRevenue) {
+    const years = validRevenue.length - 1;
+    const revenueGrowth = calculateCAGR(validRevenue[0].value, validRevenue[validRevenue.length - 1].value, years);
     const isPositive = revenueGrowth > 0.10;
-    
-    metrics.push({
-      id: 'revenue-growth',
-      label: 'Croissance du chiffre d\'affaires',
-      value: revenueGrowth * 100,
-      unit: '%',
-      description: `par an sur les ${years} dernières années`,
-      threshold: 'Doit être supérieur à 10 %',
-      isPositive,
-      status: isPositive ? 'success' : revenueGrowth > 0.05 ? 'warning' : 'error'
-    });
+    metrics.push({ id: 'revenue-growth', label: "Croissance du chiffre d'affaires", value: revenueGrowth * 100, unit: '%', description: 'en moyenne par an sur les ' + years + ' dernières années', threshold: 'Doit etre superieur a 10 %', isPositive, status: isPositive ? 'success' : revenueGrowth > 0.05 ? 'warning' : 'error' });
   } else {
-    metrics.push({
-      id: 'revenue-growth',
-      label: 'Croissance du chiffre d\'affaires',
-      value: 0,
-      unit: '%',
-      description: 'par an sur les 5 dernières années',
-      threshold: 'Doit être supérieur à 10 %',
-      isPositive: false,
-      status: 'error'
-    });
+    metrics.push({ id: 'revenue-growth', label: "Croissance du chiffre d'affaires", value: null, unit: '%', description: 'N/A', threshold: 'Doit etre superieur a 10 %', isPositive: false, status: 'neutral' });
   }
-
-  // 2. FCF Growth (CAGR sur 5 ans)
-  if (cashFlows.length >= 2) {
-    const sortedCF = [...cashFlows].sort((a, b) => 
-      parseInt(b.fiscalYear) - parseInt(a.fiscalYear)
-    );
-    const recentFCF = sortedCF[0]?.freeCashFlow || 0;
-    const oldFCF = sortedCF[Math.min(4, sortedCF.length - 1)]?.freeCashFlow || 0;
-    const years = Math.min(5, sortedCF.length - 1);
-    
-    const fcfGrowth = calculateCAGR(oldFCF, recentFCF, years);
+  const validFCF = getValidDataPoints(cashFlows, item => item.freeCashFlow, item => item.fiscalYear);
+  if (validFCF) {
+    const years = validFCF.length - 1;
+    const fcfGrowth = calculateCAGR(validFCF[0].value, validFCF[validFCF.length - 1].value, years);
     const isPositive = fcfGrowth > 0.10;
-    
-    metrics.push({
-      id: 'fcf-growth',
-      label: 'Croissance du free cash flow',
-      value: fcfGrowth * 100,
-      unit: '%',
-      description: `par an sur les ${years} dernières années`,
-      threshold: 'Doit être supérieur à 10 %',
-      isPositive,
-      status: isPositive ? 'success' : fcfGrowth > 0.05 ? 'warning' : 'error'
-    });
+    metrics.push({ id: 'fcf-growth', label: 'Croissance du free cash flow', value: fcfGrowth * 100, unit: '%', description: 'en moyenne par an sur les ' + years + ' dernières années', threshold: 'Doit etre superieur a 10 %', isPositive, status: isPositive ? 'success' : fcfGrowth > 0.05 ? 'warning' : 'error' });
   } else {
-    metrics.push({
-      id: 'fcf-growth',
-      label: 'Croissance du free cash flow',
-      value: 0,
-      unit: '%',
-      description: 'par an sur les 5 dernières années',
-      threshold: 'Doit être supérieur à 10 %',
-      isPositive: false,
-      status: 'error'
-    });
+    metrics.push({ id: 'fcf-growth', label: 'Croissance du free cash flow', value: null, unit: '%', description: 'N/A', threshold: 'Doit etre superieur a 10 %', isPositive: false, status: 'neutral' });
   }
-
-  // 3. Super ROIC (moyenne sur 5 ans)
-  if (incomeStatements.length > 0 && balanceSheets.length > 0) {
-    // Simplification: on calcule avec les donnees disponibles
-    // Calcul complexe du ROIC necessite EBIT, tax rate, debt, equity, cash
-    const roicValue = 0.15; // Placeholder - a remplacer par vrai calcul
-    const roicPositive = roicValue > 0.15;
-    
-    metrics.push({
-      id: 'super-roic',
-      label: 'Super ROIC',
-      value: roicValue * 100,
-      unit: '%',
-      description: 'en moyenne sur 5 ans',
-      threshold: 'Doit etre superieur a 15 %',
-      isPositive: roicPositive,
-      status: roicPositive ? 'success' : roicValue > 0.10 ? 'warning' : 'error'
-    });
-  } else {
-    metrics.push({
-      id: 'super-roic',
-      label: 'Super ROIC',
-      value: 0,
-      unit: '%',
-      description: 'en moyenne sur 5 ans',
-      threshold: 'Doit etre superieur a 15 %',
-      isPositive: false,
-      status: 'error'
-    });
-  }
-
-  // 4. Net Debt to FCF (dernier trimestre/année)
   if (balanceSheets.length > 0 && cashFlows.length > 0) {
-    const latestBS = [...balanceSheets].sort((a, b) => 
-      parseInt(b.fiscalYear) - parseInt(a.fiscalYear)
-    )[0];
-    const latestCF = [...cashFlows].sort((a, b) => 
-      parseInt(b.fiscalYear) - parseInt(a.fiscalYear)
-    )[0];
-    
-    const netDebt = latestBS?.netDebt || 0;
+    const roicValues = balanceSheets.map(bs => { const cf = cashFlows.find(c => c.fiscalYear === bs.fiscalYear); if (!cf) return null; const ic = bs.investedCapital ?? (bs.totalDebt + bs.totalStockholdersEquity - bs.cashAndCashEquivalents); return calculateROIC(cf.freeCashFlow, cf.stockBasedCompensation, ic); }).filter((v): v is number => v !== null && isFinite(v));
+    const roicValue = roicValues.length > 0 ? roicValues.reduce((sum, v) => sum + v, 0) / roicValues.length : 0;
+    const roicPositive = roicValue > 0.15;
+    metrics.push({ id: 'super-roic', label: 'Super ROIC', value: Math.round(roicValue * 100 * 10) / 10, unit: '%', description: 'en moyenne sur ' + roicValues.length + ' ans', threshold: 'Doit etre superieur a 15 %', isPositive: roicPositive, status: roicPositive ? 'success' : roicValue > 0.10 ? 'warning' : 'error' });
+  } else {
+    metrics.push({ id: 'super-roic', label: 'Super ROIC', value: null, unit: '%', description: 'N/A', threshold: 'Doit etre superieur a 15 %', isPositive: false, status: 'neutral' });
+  }
+  if (balanceSheets.length > 0 && cashFlows.length > 0) {
+    const latestBS = [...balanceSheets].sort((a, b) => parseInt(b.fiscalYear) - parseInt(a.fiscalYear))[0];
+    const latestCF = [...cashFlows].sort((a, b) => parseInt(b.fiscalYear) - parseInt(a.fiscalYear))[0];
+    const netDebt = latestBS?.netDebt ?? (latestBS ? latestBS.totalDebt - latestBS.cashAndCashEquivalents : 0);
     const fcf = latestCF?.freeCashFlow || 0;
     const debtToFCF = calculateDebtToFCF(netDebt, fcf);
     const isPositive = debtToFCF < 3;
-    
-    metrics.push({
-      id: 'debt-fcf',
-      label: 'Dette nette / Free cash flow',
-      value: debtToFCF === Infinity ? 999 : debtToFCF,
-      unit: '',
-      description: 'au dernier exercice',
-      threshold: 'Doit être inférieur à 3',
-      isPositive,
-      status: isPositive ? 'success' : debtToFCF < 5 ? 'warning' : 'error'
-    });
+    metrics.push({ id: 'debt-fcf', label: 'Dette nette / Free cash flow', value: debtToFCF === Infinity ? 999 : debtToFCF, unit: '', description: 'au dernier exercice', threshold: 'Doit etre inferieur a 3', isPositive, status: isPositive ? 'success' : debtToFCF < 5 ? 'warning' : 'error' });
   } else {
-    metrics.push({
-      id: 'debt-fcf',
-      label: 'Dette nette / Free cash flow',
-      value: 0,
-      unit: '',
-      description: 'au dernier exercice',
-      threshold: 'Doit être inférieur à 3',
-      isPositive: false,
-      status: 'error'
-    });
+    metrics.push({ id: 'debt-fcf', label: 'Dette nette / Free cash flow', value: null, unit: '', description: 'N/A', threshold: 'Doit etre inferieur a 3', isPositive: false, status: 'neutral' });
   }
-
-  // 5. Share Dilution (CAGR sur 5 ans)
-  if (incomeStatements.length >= 2) {
-    const sortedIncome = [...incomeStatements].sort((a, b) => 
-      parseInt(b.fiscalYear) - parseInt(a.fiscalYear)
-    );
-    const recentShares = sortedIncome[0]?.weightedAverageSharesDiluted || 0;
-    const oldShares = sortedIncome[Math.min(4, sortedIncome.length - 1)]?.weightedAverageSharesDiluted || 0;
-    const years = Math.min(5, sortedIncome.length - 1);
-    
-    const dilution = calculateShareDilution(oldShares, recentShares, years);
-    const isPositive = dilution <= 0; // Buybacks = good (negative dilution)
-    
-    metrics.push({
-      id: 'shares-outstanding',
-      label: 'Nombre d\'actions en circulation',
-      value: dilution * 100,
-      unit: '%',
-      description: `sur les ${years} dernières années`,
-      threshold: 'Doit être inférieur ou égal à 0 %',
-      isPositive,
-      status: isPositive ? 'success' : dilution < 0.05 ? 'warning' : 'error'
-    });
+  const validShares = getValidDataPoints(incomeStatements, item => item.weightedAverageSharesDiluted, item => item.fiscalYear);
+  if (validShares) {
+    const years = validShares.length - 1;
+    const dilution = calculateShareDilution(validShares[0].value, validShares[validShares.length - 1].value, years);
+    const isPositive = dilution <= 0;
+    metrics.push({ id: 'shares-outstanding', label: "Nombre d'actions en circulation", value: dilution * 100, unit: '%', description: 'en moyenne par an sur les ' + years + ' dernières années', threshold: 'Doit etre inferieur ou egal a 0 %', isPositive, status: isPositive ? 'success' : dilution < 0.05 ? 'warning' : 'error' });
   } else {
-    metrics.push({
-      id: 'shares-outstanding',
-      label: 'Nombre d\'actions en circulation',
-      value: 0,
-      unit: '%',
-      description: 'sur les 5 dernières années',
-      threshold: 'Doit être inférieur ou égal à 0 %',
-      isPositive: false,
-      status: 'error'
-    });
+    metrics.push({ id: 'shares-outstanding', label: "Nombre d'actions en circulation", value: null, unit: '%', description: 'N/A', threshold: 'Doit etre inferieur ou egal a 0 %', isPositive: false, status: 'neutral' });
   }
-
-  // 6. FCF Margin (moyenne sur 5 ans)
   if (cashFlows.length > 0 && incomeStatements.length > 0) {
     const sortedCF = [...cashFlows].sort((a, b) => 
-      parseInt(b.fiscalYear) - parseInt(a.fiscalYear)
-    );
+      parseInt(b.fiscalYear) - parseInt(a.fiscalYear));
     const sortedIncome = [...incomeStatements].sort((a, b) => 
-      parseInt(b.fiscalYear) - parseInt(a.fiscalYear)
-    );
-    
+      parseInt(b.fiscalYear) - parseInt(a.fiscalYear));
     let totalMargin = 0;
     let count = 0;
     const yearsToAverage = Math.min(5, sortedCF.length, sortedIncome.length);
-    
     for (let i = 0; i < yearsToAverage; i++) {
       const fcf = sortedCF[i]?.freeCashFlow || 0;
       const revenue = sortedIncome[i]?.revenue || 0;
-      if (revenue > 0) {
+      if (revenue > 0 && fcf !== 0) {
         totalMargin += calculateFCFMargin(fcf, revenue);
         count++;
       }
     }
-    
     const avgMargin = count > 0 ? totalMargin / count : 0;
     const isPositive = avgMargin > 0.10;
-    
-    metrics.push({
-      id: 'fcf-margin',
-      label: 'Marge du free cash flow',
-      value: avgMargin * 100,
-      unit: '%',
-      description: `en moyenne sur ${count} ans`,
-      threshold: 'Doit être supérieur à 10 %',
-      isPositive,
-      status: isPositive ? 'success' : avgMargin > 0.05 ? 'warning' : 'error'
-    });
+    metrics.push({ id: 'fcf-margin', label: 'Marge du free cash flow', value: avgMargin * 100, unit: '%', description: 'en moyenne sur ' + count + ' ans', threshold: 'Doit etre superieur a 10 %', isPositive, status: isPositive ? 'success' : avgMargin > 0.05 ? 'warning' : 'error' });
   } else {
-    metrics.push({
-      id: 'fcf-margin',
-      label: 'Marge du free cash flow',
-      value: 0,
-      unit: '%',
-      description: 'en moyenne sur 5 ans',
-      threshold: 'Doit être supérieur à 10 %',
-      isPositive: false,
-      status: 'error'
-    });
+    metrics.push({ id: 'fcf-margin', label: 'Marge du free cash flow', value: null, unit: '%', description: 'N/A', threshold: 'Doit etre superieur a 10 %', isPositive: false, status: 'neutral' });
   }
-
   return metrics;
 }

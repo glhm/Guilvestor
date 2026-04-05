@@ -35,6 +35,7 @@ export interface AnnualCashFlow {
   fiscalYear: string;
   freeCashFlow: number;
   stockBasedCompensation: number;
+  dividendsPaid?: number;
 }
 
 export interface AnnualBalanceSheet {
@@ -42,5 +43,6 @@ export interface AnnualBalanceSheet {
   totalDebt: number;
   totalStockholdersEquity: number;
   cashAndCashEquivalents: number;
-  netDebt: number;
+  netDebt?: number;
+  investedCapital?: number;
 }

@@ -1,9 +1,9 @@
 "use client"
 
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend } from "recharts"
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Cell } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { ChartDataPoint, CAGRData } from "@/lib/types"
+import type { ChartDataPoint, CAGRData } from "@/lib/types/fmp"
 
 interface BarChartCardProps {
   title: string
@@ -30,8 +30,11 @@ export function BarChartCard({
   color2 = "hsl(var(--chart-2))",
   formatValue = (v) => `${v.toFixed(1)}B`,
 }: BarChartCardProps) {
-  // Sample data to show every 2nd year for readability
-  const sampledData = data.filter((_, i) => i % 2 === 0 || i === data.length - 1)
+  // Show last 5 years only
+  const sampledData = data.slice(-5)
+  
+  // Check if we have valid data
+  const hasValidData = sampledData.some(d => (d as any)[dataKey] > 0 || (dataKey2 && (d as any)[dataKey2] > 0))
 
   return (
     <Card className="shadow-sm">
@@ -66,64 +69,91 @@ export function BarChartCard({
           </div>
         )}
         <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={sampledData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
-              <XAxis 
-                dataKey="year" 
-                tick={{ fontSize: 10 }} 
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-                className="fill-muted-foreground"
-              />
-              <YAxis 
-                tick={{ fontSize: 10 }} 
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={formatValue}
-                className="fill-muted-foreground"
-              />
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div className="rounded-lg bg-popover px-3 py-2 text-sm shadow-lg ring-1 ring-border">
-                        <p className="font-semibold">{label}</p>
-                        {payload.map((entry, index) => (
-                          <p key={index} className="text-muted-foreground">
-                            {entry.name}: {formatValue(entry.value as number)}
-                          </p>
-                        ))}
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <Bar 
-                dataKey={dataKey} 
-                fill={color} 
-                radius={[4, 4, 0, 0]}
-                name={legendLabel || dataKey}
-              />
-              {dataKey2 && (
-                <Bar 
-                  dataKey={dataKey2} 
-                  fill={color2} 
-                  radius={[4, 4, 0, 0]}
-                  name={legendLabel2 || dataKey2}
+          {!hasValidData ? (
+            <div className="h-full flex items-center justify-center border border-dashed border-gray-300 rounded">
+              <span className="text-gray-400 text-sm">N/A</span>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={sampledData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
+                <XAxis 
+                  dataKey="year" 
+                  tick={{ fontSize: 10 }} 
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                  className="fill-muted-foreground"
                 />
-              )}
-            </BarChart>
-          </ResponsiveContainer>
+                <YAxis 
+                  tick={{ fontSize: 10 }} 
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={formatValue}
+                  className="fill-muted-foreground"
+                />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="rounded-lg bg-popover px-3 py-2 text-sm shadow-lg ring-1 ring-border">
+                          <p className="font-semibold">{label}</p>
+                          {payload.map((entry, index) => {
+                            const value = entry.value as number | null | null
+                            return (
+                              <p key={index} className="text-muted-foreground">
+                                {entry.name}: {value === null || value === 0 ? 'N/A' : formatValue(value)}
+                              </p>
+                            )
+                          })}
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Bar 
+                  dataKey={dataKey} 
+                  fill={color} 
+                  radius={[4, 4, 0, 0]}
+                  name={legendLabel || dataKey}
+                >
+                  {sampledData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={(entry as any)[dataKey] > 0 ? color : 'transparent'} 
+                    />
+                  ))}
+                </Bar>
+                {dataKey2 && (
+                  <Bar 
+                    dataKey={dataKey2} 
+                    fill={color2} 
+                    radius={[4, 4, 0, 0]}
+                    name={legendLabel2 || dataKey2}
+                  >
+                    {sampledData.map((entry, index) => (
+                      <Cell 
+                        key={`cell2-${index}`} 
+                        fill={(entry as any)[dataKey2] > 0 ? color2 : 'transparent'} 
+                      />
+                    ))}
+                  </Bar>
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
         {cagr && (
-          <div className="mt-2 flex items-center gap-4 text-xs">
+          <div className="mt-2 flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">CAGR</span>
-            <span className="font-medium text-red-500">5Y: {cagr.fiveYear.toFixed(2)} %</span>
-            <span className="font-medium text-red-600">10Y: {cagr.tenYear.toFixed(2)} %</span>
-            <span className="font-medium text-red-700">20Y: {cagr.twentyYear.toFixed(2)} %</span>
+            {cagr.value !== undefined && cagr.value !== 0 ? (
+              <span className="font-medium text-red-500">
+                {cagr.years || '?'}y: {cagr.value.toFixed(2)} %
+              </span>
+            ) : (
+              <span className="font-medium text-gray-400">N/A</span>
+            )}
           </div>
         )}
       </CardContent>

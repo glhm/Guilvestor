@@ -83,6 +83,7 @@ function mapCashFlow(raw: FMPCashFlow): AnnualCashFlow {
     fiscalYear: raw.fiscalYear,
     freeCashFlow: raw.freeCashFlow,
     stockBasedCompensation: raw.stockBasedCompensation,
+    dividendsPaid: raw.commonDividendsPaid || raw.netDividendsPaid,
   };
 }
 

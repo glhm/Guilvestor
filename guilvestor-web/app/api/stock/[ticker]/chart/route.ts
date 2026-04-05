@@ -100,11 +100,21 @@ export async function GET(
         break;
       }
 
+      case 'dividends': {
+        const items = await adapter.getCashFlows(ticker, limit);
+        chartData = items
+          .sort((a, b) => parseInt(a.fiscalYear) - parseInt(b.fiscalYear))
+          .map(item => ({
+            year: item.fiscalYear,
+            value: item.dividendsPaid ? Math.abs(item.dividendsPaid) / 1_000_000_000 : 0,
+          }));
+        break;
+      }
+
       // TODO: Implement other chart types
       case 'roic':
       case 'gross-margin':
       case 'fcf-margin':
-      case 'dividends':
         chartData = []; // Placeholder
         break;
     }
